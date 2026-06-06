@@ -60,33 +60,33 @@ function fetchLicenseFromNpm(packageName) {
  * @param {((license: string) => string)?} classifierFn - カスタム分類関数（省略時はデフォルト）
  * @returns {{ name: string, license: string, verdict: 'allowed' | 'caution' | 'forbidden' | 'unknown' }}
  */
-export function checkLicense(packageName, classifierFn) {
+export function checkLicense(packageName, classifierFn, cache) {
   const classifyFn = classifierFn || classify;
-  const cache = loadCache();
+  const ownCache = cache === undefined;
+  if (ownCache) cache = loadCache();
   const now = Date.now();
 
-  // キャッシュに有効なエントリがあればそれを使う
   if (cache[packageName] && (now - cache[packageName].ts) < CACHE_TTL_MS) {
     const license = cache[packageName].license;
     return { name: packageName, license, verdict: classifyFn(license) };
   }
 
-  // npm info で取得
   const license = fetchLicenseFromNpm(packageName);
-
-  // キャッシュに保存
   cache[packageName] = { license, ts: now };
-  saveCache(cache);
+  if (ownCache) saveCache(cache);
 
   return { name: packageName, license: license || '(none)', verdict: classifyFn(license) };
 }
 
 /**
- * 複数パッケージのライセンスを一括チェックする
+ * 複数パッケージのライセンスを一括チェックする（キャッシュ I/O は 1 回）
  * @param {string[]} packageNames
- * @param {((license: string) => string)?} classifierFn - カスタム分類関数（省略時はデフォルト）
+ * @param {((license: string) => string)?} classifierFn
  * @returns {Array<{ name: string, license: string, verdict: string }>}
  */
 export function checkLicenses(packageNames, classifierFn) {
-  return packageNames.map((name) => checkLicense(name, classifierFn));
+  const cache = loadCache();
+  const results = packageNames.map((name) => checkLicense(name, classifierFn, cache));
+  saveCache(cache);
+  return results;
 }
