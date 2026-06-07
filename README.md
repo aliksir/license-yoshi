@@ -119,6 +119,11 @@ Allowlisted packages are skipped entirely (no license check performed).
 
 License lookups are cached at `~/.license-yoshi-cache.json` with a 7-day TTL. Delete this file to force fresh lookups.
 
+## Requirements
+
+- Node.js 18+
+- git (for `--cached` mode, uses `git diff`)
+
 ## License
 
 MIT

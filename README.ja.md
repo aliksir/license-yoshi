@@ -106,6 +106,11 @@ some-gpl-package
 
 ライセンス情報は `~/.license-yoshi-cache.json` に 7 日間キャッシュされます。削除すると再取得します。
 
+## 動作要件
+
+- Node.js 18+
+- git（`--cached` モードで `git diff` を使用）
+
 ## ライセンス
 
 MIT
