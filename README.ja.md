@@ -1,4 +1,5 @@
 # license-yoshi
+> [neko-HQ](https://github.com/aliksir/neko-hq) エコシステムの一部です。
 
 Node.js プロジェクトの依存ライセンスチェッカー。npm パッケージのライセンスを 4 段階（許可 / 要注意 / 禁止 / 不明）に分類し、禁止または不明なライセンスを含むコミットをブロックします。
 

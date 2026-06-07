@@ -1,4 +1,5 @@
 # license-yoshi
+> Part of the [neko-HQ](https://github.com/aliksir/neko-hq) ecosystem.
 
 Dependency license checker for Node.js projects. Classifies npm package licenses into 4 tiers (allowed / caution / forbidden / unknown) and blocks commits containing forbidden or unknown licenses.
 
