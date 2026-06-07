@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { detectAddedDeps, getAllDeps, loadAllowlist } from '../src/detector.mjs';
 import { checkLicenses } from '../src/checker.mjs';
 import { createClassifier } from '../src/rules.mjs';
+import { appendLog } from '../src/log.mjs';
 
 function printUsage() {
   console.log(`license-yoshi v0.1.0 - 依存ライセンスチェッカー
@@ -110,6 +111,18 @@ function formatVerdict(verdict) {
     default:          return verdict;
   }
 }
+
+const _start = Date.now();
+process.on('exit', (code) => {
+  appendLog({
+    tool: 'license-yoshi',
+    command: 'check',
+    ts: new Date().toISOString(),
+    duration_ms: Date.now() - _start,
+    exit_code: code,
+    meta: {},
+  });
+});
 
 function main() {
   const args = parseArgs(process.argv);
