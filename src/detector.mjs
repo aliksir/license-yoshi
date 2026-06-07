@@ -100,21 +100,47 @@ function isPackageName(name) {
 
 /**
  * allowlist ファイルを読み込む
+ * JSON形式（.license-yoshi-allow.json）を優先、テキスト形式（.license-yoshi-allow）にフォールバック
  * @param {string} dir - プロジェクトディレクトリ
- * @returns {Set<string>} 許可されたパッケージ名のセット
+ * @returns {Map<string, { reason?: string, approved_by?: string, expires?: string }>}
  */
 export function loadAllowlist(dir) {
-  const allowPath = join(dir, '.license-yoshi-allow');
-  if (!existsSync(allowPath)) return new Set();
-
-  try {
-    const raw = readFileSync(allowPath, 'utf-8');
-    const names = raw
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#'));
-    return new Set(names);
-  } catch {
-    return new Set();
+  const jsonPath = join(dir, '.license-yoshi-allow.json');
+  if (existsSync(jsonPath)) {
+    try {
+      const raw = readFileSync(jsonPath, 'utf-8');
+      const entries = JSON.parse(raw);
+      const map = new Map();
+      for (const entry of entries) {
+        if (entry.pkg) {
+          map.set(entry.pkg, {
+            reason: entry.reason || '',
+            approved_by: entry.approved_by || '',
+            expires: entry.expires || '',
+          });
+        }
+      }
+      return map;
+    } catch {
+      return new Map();
+    }
   }
+
+  const textPath = join(dir, '.license-yoshi-allow');
+  if (existsSync(textPath)) {
+    try {
+      const raw = readFileSync(textPath, 'utf-8');
+      const map = new Map();
+      raw
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+        .forEach((name) => map.set(name, { reason: '', approved_by: '', expires: '' }));
+      return map;
+    } catch {
+      return new Map();
+    }
+  }
+
+  return new Map();
 }

@@ -10,7 +10,7 @@ import { createClassifier } from '../src/rules.mjs';
 import { appendLog } from '../src/log.mjs';
 
 function printUsage() {
-  console.log(`license-yoshi v0.1.0 - 依存ライセンスチェッカー
+  console.log(`license-yoshi v0.2.0 - 依存ライセンスチェッカー
 
 Usage:
   license-yoshi [options]
@@ -20,14 +20,14 @@ Options:
   --cached             git diff --cached で追加された依存のみチェック (default)
   --all                全依存をチェック
   --rules <path>       カスタムルールファイル (JSON) を指定
+  --strict             期限切れ allowlist エントリを FAIL 扱いにする
+  --json               結果を JSON 形式で出力する
   --help               ヘルプ表示
 
-Custom rules file format:
-  {
-    "allowed": ["MIT", "Apache-2.0"],
-    "caution": ["LGPL-3.0"],
-    "forbidden": ["GPL-3.0"]
-  }
+Allowlist file (.license-yoshi-allow.json):
+  [
+    { "pkg": "some-pkg", "reason": "内部利用のみ", "approved_by": "aliksir", "expires": "2027-01-01" }
+  ]
 
 Exit codes:
   0  全て許可 or 要注意のみ
@@ -35,7 +35,7 @@ Exit codes:
 }
 
 function parseArgs(argv) {
-  const args = { dir: process.cwd(), mode: 'cached', help: false, rulesPath: null };
+  const args = { dir: process.cwd(), mode: 'cached', help: false, rulesPath: null, strict: false, json: false };
 
   for (let i = 2; i < argv.length; i++) {
     switch (argv[i]) {
@@ -52,6 +52,12 @@ function parseArgs(argv) {
       case '--rules':
         i++;
         if (i < argv.length) args.rulesPath = resolve(argv[i]);
+        break;
+      case '--strict':
+        args.strict = true;
+        break;
+      case '--json':
+        args.json = true;
         break;
       case '--help':
       case '-h':
@@ -154,49 +160,86 @@ function main() {
   // allowlist 読み込み
   const allowlist = loadAllowlist(args.dir);
 
-  // allowlist に含まれるパッケージを除外
-  const filtered = packages.filter((pkg) => {
-    if (allowlist.has(pkg)) {
-      console.log(`  ${pkg}: allowlist でスキップ`);
-      return false;
-    }
-    return true;
-  });
+  // allowlist パッケージを分離（記録は残す）
+  const allowedByList = [];
+  const filtered = [];
+  const today = new Date().toISOString().slice(0, 10);
 
-  if (filtered.length === 0) {
-    console.log('license-yoshi: チェック対象の依存はありません（全て allowlist）');
-    process.exit(0);
+  for (const pkg of packages) {
+    if (allowlist.has(pkg)) {
+      const entry = allowlist.get(pkg);
+      const expired = args.strict && entry.expires && entry.expires < today;
+      allowedByList.push({ name: pkg, status: expired ? 'expired' : 'allowed', ...entry });
+      if (expired) {
+        filtered.push(pkg);
+      }
+    } else {
+      filtered.push(pkg);
+    }
   }
 
   // ライセンスチェック実行
-  console.log(`license-yoshi: ${filtered.length} 件の依存をチェック中...`);
-  console.log('');
+  const results = filtered.length > 0 ? checkLicenses(filtered, classifierFn) : [];
 
-  const results = checkLicenses(filtered, classifierFn);
+  if (!args.json) {
+    console.log(`license-yoshi: ${packages.length} 件の依存をチェック中...`);
+    console.log('');
+  }
 
   // 結果表示
   let hasForbidden = false;
   let hasUnknown = false;
   let cautionCount = 0;
+  let expiredCount = 0;
+
+  if (!args.json) {
+    for (const a of allowedByList) {
+      if (a.status === 'expired') {
+        console.log(`  ${a.name}: allowlist \x1b[31m期限切れ (${a.expires})\x1b[0m — 通常チェックに戻します`);
+        expiredCount++;
+      } else {
+        const reason = a.reason ? ` (${a.reason})` : '';
+        console.log(`  ${a.name}: allowlist${reason} -> \x1b[36mALLOWED\x1b[0m`);
+      }
+    }
+  }
 
   for (const r of results) {
-    const verdictStr = formatVerdict(r.verdict);
-    console.log(`  ${r.name}: ${r.license} -> ${verdictStr}`);
-
+    if (!args.json) {
+      const verdictStr = formatVerdict(r.verdict);
+      console.log(`  ${r.name}: ${r.license} -> ${verdictStr}`);
+    }
     if (r.verdict === 'forbidden') hasForbidden = true;
     if (r.verdict === 'unknown') hasUnknown = true;
     if (r.verdict === 'caution') cautionCount++;
   }
 
+  // JSON 出力
+  if (args.json) {
+    const allResults = [
+      ...allowedByList.filter(a => a.status !== 'expired').map(a => ({
+        name: a.name, license: null, verdict: 'allowed', status: 'allowed',
+        reason: a.reason, approved_by: a.approved_by, expires: a.expires,
+      })),
+      ...results.map(r => ({ ...r, status: 'checked' })),
+    ];
+    console.log(JSON.stringify({ total: allResults.length, results: allResults, expired: expiredCount }, null, 2));
+    if (hasForbidden || hasUnknown) process.exit(1);
+    process.exit(0);
+  }
+
   console.log('');
 
   // サマリー
-  const total = results.length;
-  const allowedCount = results.filter((r) => r.verdict === 'allowed').length;
+  const total = results.length + allowedByList.filter(a => a.status !== 'expired').length;
+  const allowedCount = results.filter((r) => r.verdict === 'allowed').length + allowedByList.filter(a => a.status !== 'expired').length;
   const forbiddenCount = results.filter((r) => r.verdict === 'forbidden').length;
   const unknownCount = results.filter((r) => r.verdict === 'unknown').length;
 
   console.log(`結果: ${total} 件中 — 許可: ${allowedCount}, 要注意: ${cautionCount}, 禁止: ${forbiddenCount}, 不明: ${unknownCount}`);
+  if (expiredCount > 0) {
+    console.log(`  \x1b[31mallowlist 期限切れ: ${expiredCount} 件（--strict で FAIL 扱い）\x1b[0m`);
+  }
 
   if (hasForbidden || hasUnknown) {
     console.log('');
@@ -204,14 +247,14 @@ function main() {
     if (hasUnknown) {
       console.error('  不明なライセンス = 禁止扱い（code-provenance.md 準拠）');
     }
-    console.error('  例外許可する場合は .license-yoshi-allow にパッケージ名を追記してください');
+    console.error('  例外許可する場合は .license-yoshi-allow.json にエントリを追加してください');
     process.exit(1);
   }
 
   if (cautionCount > 0) {
     console.log('');
     console.warn('\x1b[33mWARNING: 要注意ライセンスが含まれています。組込みでは原則禁止です。\x1b[0m');
-    console.warn('  総司令承認で例外可。.license-yoshi-allow に追加で警告を抑制できます');
+    console.warn('  総司令承認で例外可。.license-yoshi-allow.json に追加で警告を抑制できます');
   }
 
   console.log('');

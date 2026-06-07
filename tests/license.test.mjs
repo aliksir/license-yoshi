@@ -222,6 +222,52 @@ describe('loadAllowlist', async () => {
 
     unlinkSync(allowPath);
   });
+
+  it('JSON形式の allowlist を読み込む', () => {
+    const dir = join(tmpdir(), 'license-yoshi-test-allow-json');
+    mkdirSync(dir, { recursive: true });
+    const jsonPath = join(dir, '.license-yoshi-allow.json');
+    writeFileSync(jsonPath, JSON.stringify([
+      { pkg: 'pkg-x', reason: 'internal use', approved_by: 'admin', expires: '2027-01-01' },
+      { pkg: 'pkg-y', reason: 'testing' },
+    ]));
+
+    const result = loadAllowlist(dir);
+    assert.equal(result.size, 2);
+    assert.ok(result.has('pkg-x'));
+    assert.deepEqual(result.get('pkg-x'), { reason: 'internal use', approved_by: 'admin', expires: '2027-01-01' });
+    assert.ok(result.has('pkg-y'));
+    assert.deepEqual(result.get('pkg-y'), { reason: 'testing', approved_by: '', expires: '' });
+
+    unlinkSync(jsonPath);
+  });
+
+  it('JSON形式がテキスト形式より優先される', () => {
+    const dir = join(tmpdir(), 'license-yoshi-test-allow-priority');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, '.license-yoshi-allow'), 'old-pkg\n');
+    writeFileSync(join(dir, '.license-yoshi-allow.json'), JSON.stringify([{ pkg: 'new-pkg', reason: 'json wins' }]));
+
+    const result = loadAllowlist(dir);
+    assert.equal(result.size, 1);
+    assert.ok(result.has('new-pkg'));
+    assert.ok(!result.has('old-pkg'));
+
+    unlinkSync(join(dir, '.license-yoshi-allow'));
+    unlinkSync(join(dir, '.license-yoshi-allow.json'));
+  });
+
+  it('テキスト形式の allowlist はメタデータ空で Map を返す', () => {
+    const dir2 = join(tmpdir(), 'license-yoshi-test-allow-text-map');
+    mkdirSync(dir2, { recursive: true });
+    writeFileSync(join(dir2, '.license-yoshi-allow'), 'text-pkg\n');
+
+    const result = loadAllowlist(dir2);
+    assert.equal(result.size, 1);
+    assert.deepEqual(result.get('text-pkg'), { reason: '', approved_by: '', expires: '' });
+
+    unlinkSync(join(dir2, '.license-yoshi-allow'));
+  });
 });
 
 describe('createClassifier', () => {

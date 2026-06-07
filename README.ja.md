@@ -36,6 +36,8 @@ Options:
   --cached             git diff --cached で追加された依存のみチェック (default)
   --all                全依存をチェック
   --rules <path>       カスタムルールファイル (JSON) を指定
+  --strict             期限切れ allowlist エントリを FAIL 扱いにする
+  --json               結果を JSON 形式で出力する
   --help               ヘルプ表示
 ```
 
@@ -94,14 +96,23 @@ license-yoshi --all --rules my-rules.json
 
 ## Allowlist
 
-プロジェクトルートに `.license-yoshi-allow` を作成してパッケージ単位で例外許可:
+### JSON形式（推奨）
 
+`.license-yoshi-allow.json` で監査対応のメタデータ付き allowlist:
+
+```json
+[
+  { "pkg": "some-gpl-package", "reason": "内部利用のみ", "approved_by": "admin", "expires": "2027-01-01" },
+  { "pkg": "@scope/special-package", "reason": "評価済み" }
+]
 ```
-# 1行1パッケージ名
-# # で始まる行はコメント
-some-gpl-package
-@scope/special-package
-```
+
+allowlist パッケージも `status: "allowed"` として出力に記録されます。
+`--strict` で期限切れエントリを FAIL 扱いにできます。
+
+### テキスト形式（レガシー）
+
+`.license-yoshi-allow`（1行1パッケージ名、`#` コメント可）。両方存在する場合は JSON 優先。
 
 ## キャッシュ
 

@@ -36,6 +36,8 @@ Options:
   --cached             Check only dependencies added in staged changes (default)
   --all                Check all dependencies in package.json
   --rules <path>       Custom rules file (JSON)
+  --strict             Treat expired allowlist entries as FAIL
+  --json               Output results in JSON format
   --help               Show help
 ```
 
@@ -105,16 +107,24 @@ When `--rules` is specified, default rules are **completely replaced** (no mergi
 
 ## Allowlist
 
-Create `.license-yoshi-allow` in your project root to exempt specific packages:
+### JSON format (recommended)
 
-```
-# One package name per line
-# Lines starting with # are comments
-some-gpl-package
-@scope/special-package
+Create `.license-yoshi-allow.json` for audit-ready allowlist with metadata:
+
+```json
+[
+  { "pkg": "some-gpl-package", "reason": "Internal use only", "approved_by": "admin", "expires": "2027-01-01" },
+  { "pkg": "@scope/special-package", "reason": "Evaluated and accepted" }
+]
 ```
 
-Allowlisted packages are skipped entirely (no license check performed).
+Allowlisted packages are still included in the output with `status: "allowed"` (not silently skipped).
+Use `--strict` to treat expired entries as failures.
+
+### Text format (legacy)
+
+Create `.license-yoshi-allow` in your project root (one package name per line, `#` for comments).
+If both files exist, the JSON format takes priority.
 
 ## Caching
 
