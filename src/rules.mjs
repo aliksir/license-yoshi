@@ -1,6 +1,10 @@
 // license-yoshi: ライセンス分類ルール
 // code-provenance.md 準拠（組込みバイナリ配布前提）
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+
 /** @type {ReadonlySet<string>} */
 export const ALLOWED = new Set([
   'MIT',
@@ -121,6 +125,21 @@ export function classify(license) {
   if (CAUTION.has(normalized)) return 'caution';
   if (FORBIDDEN.has(normalized)) return 'forbidden';
   return 'unknown';
+}
+
+/**
+ * .neko-policy/license-policy.json からカスタム分類器を読み込む
+ * @returns {((license: string) => string) | null}
+ */
+export function loadPolicyClassifier() {
+  try {
+    const p = join(homedir(), '.neko-policy', 'license-policy.json');
+    const data = JSON.parse(readFileSync(p, 'utf8'));
+    if (data.allowed || data.forbidden || data.caution) {
+      return createClassifier(data);
+    }
+  } catch { /* policy not found or malformed */ }
+  return null;
 }
 
 /**

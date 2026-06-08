@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { classify } from './rules.mjs';
+import { classify, loadPolicyClassifier } from './rules.mjs';
 
 const CACHE_PATH = join(homedir(), '.license-yoshi-cache.json');
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -61,7 +61,7 @@ function fetchLicenseFromNpm(packageName) {
  * @returns {{ name: string, license: string, verdict: 'allowed' | 'caution' | 'forbidden' | 'unknown' }}
  */
 export function checkLicense(packageName, classifierFn, cache) {
-  const classifyFn = classifierFn || classify;
+  const classifyFn = classifierFn || loadPolicyClassifier() || classify;
   const ownCache = cache === undefined;
   if (ownCache) cache = loadCache();
   const now = Date.now();
