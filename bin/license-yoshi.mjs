@@ -119,13 +119,19 @@ function formatVerdict(verdict) {
 }
 
 const _start = Date.now();
+let _severity = 'info';
+let _summary = { forbidden: 0, caution: 0, allowed: 0, expired_allowlist: 0 };
+
 process.on('exit', (code) => {
   appendLog({
+    schema_version: '1.1',
     tool: 'license-yoshi',
     command: 'check',
     ts: new Date().toISOString(),
     duration_ms: Date.now() - _start,
     exit_code: code,
+    severity: _severity,
+    summary: _summary,
     meta: {},
   });
 });
@@ -224,6 +230,14 @@ function main() {
       ...results.map(r => ({ ...r, status: 'checked' })),
     ];
     console.log(JSON.stringify({ total: allResults.length, results: allResults, expired: expiredCount }, null, 2));
+
+    // Schema v1.1: update module-scope stats for JSON path
+    const jForbidden = results.filter(r => r.verdict === "forbidden").length;
+    const jUnknown = results.filter(r => r.verdict === "unknown").length;
+    const jCaution = results.filter(r => r.verdict === "caution").length;
+    const jAllowed = results.filter(r => r.verdict === "allowed").length + allowedByList.filter(a => a.status !== "expired").length;
+    _summary = { forbidden: jForbidden + jUnknown, caution: jCaution, allowed: jAllowed, expired_allowlist: allowedByList.filter(a => a.status === "expired").length };
+    _severity = (jForbidden + jUnknown) > 0 ? "block" : jCaution > 0 ? "warn" : "info";
     if (hasForbidden || hasUnknown) process.exit(1);
     process.exit(0);
   }
@@ -235,6 +249,10 @@ function main() {
   const allowedCount = results.filter((r) => r.verdict === 'allowed').length + allowedByList.filter(a => a.status !== 'expired').length;
   const forbiddenCount = results.filter((r) => r.verdict === 'forbidden').length;
   const unknownCount = results.filter((r) => r.verdict === 'unknown').length;
+
+  // Schema v1.1: update module-scope stats variables
+  _summary = { forbidden: forbiddenCount + unknownCount, caution: cautionCount, allowed: allowedCount, expired_allowlist: expiredCount };
+  _severity = (forbiddenCount + unknownCount) > 0 ? 'block' : cautionCount > 0 ? 'warn' : 'info';
 
   console.log(`結果: ${total} 件中 — 許可: ${allowedCount}, 要注意: ${cautionCount}, 禁止: ${forbiddenCount}, 不明: ${unknownCount}`);
   if (expiredCount > 0) {
