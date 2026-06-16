@@ -1,6 +1,6 @@
 {
   "name": "license-yoshi",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "依存ライセンスチェッカー — code-provenance.md 準拠の4段階判定",
   "type": "module",
   "exports": {
