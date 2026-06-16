@@ -138,7 +138,7 @@ export function loadPolicyClassifier() {
     if (data.allowed || data.forbidden || data.caution) {
       return createClassifier(data);
     }
-  } catch { /* policy not found or malformed */ }
+  } catch (e) { process.stderr.write('license-yoshi: ' + e.message + '\n'); }
   return null;
 }
 

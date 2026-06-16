@@ -39,16 +39,18 @@ function saveCache(cache) {
 /**
  * npm info でライセンスを取得する
  * @param {string} packageName
+ * @param {Function | null} execFn - DI用実行関数（null なら実際の execFileSync を使う）
  * @returns {string} ライセンス文字列（取得失敗時は空文字）
  */
-function fetchLicenseFromNpm(packageName) {
+function fetchLicenseFromNpm(packageName, execFn) {
   try {
-    const result = execFileSync('npm', ['info', packageName, 'license'], {
+    const fn = execFn || execFileSync;
+    const result = fn('npm', ['info', packageName, 'license'], {
       encoding: 'utf-8',
       timeout: 30_000,
       windowsHide: true,
     });
-    return result.trim();
+    return typeof result === 'string' ? result.trim() : '';
   } catch {
     return '';
   }
@@ -57,10 +59,12 @@ function fetchLicenseFromNpm(packageName) {
 /**
  * パッケージのライセンスをチェックする
  * @param {string} packageName
- * @param {((license: string) => string)?} classifierFn - カスタム分類関数（省略時はデフォルト）
+ * @param {((license: string) => string) | null} classifierFn - カスタム分類関数（省略時はデフォルト）
+ * @param {Record<string, { license: string, ts: number }> | undefined} cache - 共有キャッシュ
+ * @param {Function | null} execFn - DI用実行関数（テスト時にnpmをスタブ化）
  * @returns {{ name: string, license: string, verdict: 'allowed' | 'caution' | 'forbidden' | 'unknown' }}
  */
-export function checkLicense(packageName, classifierFn, cache) {
+export function checkLicense(packageName, classifierFn, cache, execFn = null) {
   const classifyFn = classifierFn || loadPolicyClassifier() || classify;
   const ownCache = cache === undefined;
   if (ownCache) cache = loadCache();
@@ -71,7 +75,7 @@ export function checkLicense(packageName, classifierFn, cache) {
     return { name: packageName, license, verdict: classifyFn(license) };
   }
 
-  const license = fetchLicenseFromNpm(packageName);
+  const license = fetchLicenseFromNpm(packageName, execFn);
   cache[packageName] = { license, ts: now };
   if (ownCache) saveCache(cache);
 
@@ -81,12 +85,13 @@ export function checkLicense(packageName, classifierFn, cache) {
 /**
  * 複数パッケージのライセンスを一括チェックする（キャッシュ I/O は 1 回）
  * @param {string[]} packageNames
- * @param {((license: string) => string)?} classifierFn
+ * @param {((license: string) => string) | null} classifierFn
+ * @param {Function | null} execFn - DI用実行関数（テスト時にnpmをスタブ化）
  * @returns {Array<{ name: string, license: string, verdict: string }>}
  */
-export function checkLicenses(packageNames, classifierFn) {
+export function checkLicenses(packageNames, classifierFn, execFn = null) {
   const cache = loadCache();
-  const results = packageNames.map((name) => checkLicense(name, classifierFn, cache));
+  const results = packageNames.map((name) => checkLicense(name, classifierFn, cache, execFn));
   saveCache(cache);
   return results;
 }

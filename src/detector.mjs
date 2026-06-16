@@ -9,16 +9,18 @@ import { join } from 'node:path';
  * git diff --cached から package.json の追加行を解析し、
  * dependencies / devDependencies に追加されたパッケージ名を返す
  * @param {string} dir - プロジェクトディレクトリ
+ * @param {Function | null} execFn - DI用実行関数（テスト時にgitをスタブ化）
  * @returns {string[]} 追加されたパッケージ名の配列
  */
-export function detectAddedDeps(dir) {
+export function detectAddedDeps(dir, execFn = null) {
   try {
-    const diff = execFileSync(
+    const fn = execFn || execFileSync;
+    const diff = fn(
       'git',
       ['diff', '--cached', '--unified=0', '--', 'package.json'],
       { cwd: dir, encoding: 'utf-8', timeout: 10_000, windowsHide: true }
     );
-    return parseDiffForAddedDeps(diff);
+    return parseDiffForAddedDeps(typeof diff === 'string' ? diff : '');
   } catch {
     return [];
   }
@@ -94,8 +96,8 @@ function isPackageName(name) {
     'overrides', 'resolutions', 'packageManager',
   ]);
   if (metaFields.has(name)) return false;
-  // npm パッケージ名は小文字英数字・ハイフン・ドット・アンダースコアで構成
-  return /^[a-z0-9@][a-z0-9._-]*$/.test(name);
+  // npm パッケージ名は英数字・ハイフン・ドット・アンダースコアで構成（旧パッケージは大文字含む可能性あり）
+  return /^[a-zA-Z0-9@][a-zA-Z0-9._-]*$/.test(name);
 }
 
 /**

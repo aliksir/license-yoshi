@@ -3,6 +3,11 @@
   "version": "0.2.0",
   "description": "依存ライセンスチェッカー — code-provenance.md 準拠の4段階判定",
   "type": "module",
+  "exports": {
+    "./rules": "./src/rules.mjs",
+    "./checker": "./src/checker.mjs",
+    "./detector": "./src/detector.mjs"
+  },
   "bin": {
     "license-yoshi": "./bin/license-yoshi.mjs"
   },
