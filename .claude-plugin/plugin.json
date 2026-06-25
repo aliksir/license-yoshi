@@ -1,0 +1,26 @@
+{
+  "name": "license-yoshi",
+  "version": "0.1.0",
+  "description": "Dependency license checker that blocks commits with forbidden or unknown licenses",
+  "author": "aliksir",
+  "homepage": "https://github.com/aliksir/license-yoshi",
+  "license": "MIT",
+  "hooks": "../hooks/hooks.json",
+  "capabilities": {
+    "pre_commit": true,
+    "cli": true
+  },
+  "configuration": {
+    "rules_path": {
+      "type": "string",
+      "description": "Path to custom rules JSON file",
+      "required": false
+    },
+    "allowlist_path": {
+      "type": "string",
+      "description": "Path to allowlist file",
+      "required": false,
+      "default": ".license-yoshi-allow"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "license-yoshi",
+  "version": "0.3.0",
+  "description": "依存ライセンスチェッカー — code-provenance.md 準拠の4段階判定",
+  "type": "module",
+  "exports": {
+    "./rules": "./src/rules.mjs",
+    "./checker": "./src/checker.mjs",
+    "./detector": "./src/detector.mjs"
+  },
+  "bin": {
+    "license-yoshi": "./bin/license-yoshi.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node bin/license-yoshi.mjs --all"
+  },
+  "keywords": [
+    "license",
+    "checker",
+    "compliance",
+    "pre-commit"
+  ],
+  "author": "aliksir",
+  "license": "MIT"
+}

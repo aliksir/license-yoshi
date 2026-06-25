@@ -1,0 +1,9 @@
+{
+  "hooks": [
+    {
+      "type": "PreToolUse",
+      "matcher": "Bash",
+      "script": "../scripts/license-check-hook.mjs"
+    }
+  ]
+}
